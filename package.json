@@ -1,0 +1,20 @@
+{
+  "name": "goldspur-valley",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:sprites": "node scripts/build-rider-walk-frames.mjs && node scripts/build-horse-sprite.mjs && node scripts/build-mounted-rider-sprite.mjs && node scripts/build-mounted-atlases.mjs",
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc && vite build",
+    "preview": "vite preview --host 0.0.0.0"
+  },
+  "dependencies": {
+    "phaser": "^3.90.0"
+  },
+  "devDependencies": {
+    "sharp": "^0.34.5",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5"
+  }
+}

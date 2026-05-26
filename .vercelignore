@@ -1,0 +1,10 @@
+node_modules
+dist
+dist-check
+screenshots
+output
+test-artifacts
+.omx
+goldspur_valley_playable_mvp_beta_prompt_pack
+goldspur_valley_playable_mvp_beta_prompt_pack.zip
+reference_contact_sheet.jpg
