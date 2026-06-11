@@ -183,7 +183,7 @@ export class InventoryScene extends Phaser.Scene {
     }
     const delta = careDeltaForItem(item);
     if (!delta) {
-      this.feedback.setText(`${ITEM_LABELS[item]} is for inspecting or future upgrades.`).setColor("#d9c795");
+      this.feedback.setText(this.explorationToolHint(item)).setColor(this.isExplorationTool(item) ? "#f8dd91" : "#d9c795");
       return;
     }
     if (isConsumableCareItem(item)) this.inventory[item] -= 1;
@@ -217,7 +217,27 @@ export class InventoryScene extends Phaser.Scene {
   private actionHint(item: InventoryItemId): string {
     if (item === "horse_tracker") return "Ready: open the horse tracker panel.";
     if (this.isUsable(item)) return "Ready: press Use / Open to care for your horse.";
+    if (this.isExplorationTool(item)) return this.explorationToolHint(item);
     return "Inspect item: no direct action yet.";
+  }
+
+  private isExplorationTool(item: InventoryItemId): boolean {
+    return item === "rope"
+      || item === "lantern"
+      || item === "nail_kit"
+      || item === "watering_can"
+      || item === "horseshoe"
+      || item === "saddle";
+  }
+
+  private explorationToolHint(item: InventoryItemId): string {
+    if (item === "rope") return "Exploration tool: ride near fallen logs to use the rope.";
+    if (item === "lantern") return "Exploration tool: ride near flowers, herbs, or hibiscus to search with the lantern.";
+    if (item === "nail_kit") return "Exploration tool: ride near fishing boats to make small cove repairs.";
+    if (item === "watering_can") return "Exploration tool: ride near ponds or rain puddles to refill and cool the horse.";
+    if (item === "horseshoe") return "Exploration tool: ride near rocks or limestone to set a safe footing marker.";
+    if (item === "saddle") return "Exploration tool: visit market stalls, fruit stands, or food patches to use saddle packs.";
+    return `${ITEM_LABELS[item]} is for inspecting.`;
   }
 
   private deltaSummary(delta: Record<string, unknown>): string {

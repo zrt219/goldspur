@@ -37,15 +37,15 @@ The production build runs TypeScript compilation first and then emits the Vite b
 
 - Main menu, character selection, settings, credits, and story-mode entry
 - Ranch hub with starter home selection, NPC prompts, and guided progression
-- Open-world exploration with procedural chunks, minimap support, travel points, collision checks, hidden quest content, and weather state
+- Open-world exploration with procedural chunks, minimap support, travel points, hardened collision recovery, hidden quest content, inventory-tool exploration scenarios, and weather state
 - Horse stats, stat clamping, autosave, load, corrupted-save fallback, and reset handling
 - Player movement with horse companion behavior plus mounted riding and jumping sprites
 - Training drills with stat previews and result popups
 - Beginner Sprint Race with entry requirements, short race animation, score roll, rewards, costs, and results popup
-- Horse customization store with purchasable visual options
+- Horse customization store with purchasable visual options that affect ranch, open-world, and mounted horse tinting
 - Health recovery service with coin cost
 - Relaxation meadow with daily use limit and End Day action
-- Inventory overlay with starter items and simple use actions for carrots, apples, and hay
+- Inventory overlay with care items, horse tracker, and exploration tools for contextual trail rewards
 - Image and sprite loading with Phaser-generated fallbacks if files are missing
 
 ## Scene Descriptions
@@ -115,6 +115,7 @@ The repo includes Playwright-style smoke scripts in `scripts/` for focused gamep
 
 ```bash
 node scripts/smoke-playthrough.mjs
+node scripts/smoke-openworld-systems.mjs
 node scripts/smoke-horse-customization.mjs
 node scripts/smoke-boat-parishes.mjs
 ```
@@ -124,7 +125,7 @@ Start the Vite dev server before running smoke scripts that target a live browse
 ## Known Limitations
 
 - Race gameplay is simulated with UI and tweened sprites, not real racing physics.
-- Inventory is intentionally small; only carrots, apples, and hay are usable.
+- Inventory remains intentionally small, but tools now trigger contextual exploration scenarios in the open world.
 - Quests and open-world content are MVP-scale and mostly deterministic/local.
 - Multiplayer, backend accounts, online leaderboards, audio polish, and mobile-specific controls are placeholders or out of scope for this MVP.
 

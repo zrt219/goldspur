@@ -3,8 +3,9 @@ import { GAME_HEIGHT, IMAGE_KEYS } from "../data/constants";
 import { BaseWorldScene } from "./BaseWorldScene";
 import { ChunkManager, TravelMode, WorldInteraction } from "../world/ChunkManager";
 import { CHUNK_SIZE, chunkKey, TILE_SIZE, worldToChunk } from "../world/ChunkTypes";
+import { InventoryItemId, ITEM_LABELS } from "../data/items";
 import { SaveSystem } from "../systems/SaveSystem";
-import { applyStatDelta } from "../systems/HorseStats";
+import { applyStatDelta, StatDelta } from "../systems/HorseStats";
 import { Palette, PaletteCss } from "../art/Palette";
 import { isWildlifeSpawnObject, Wildlife } from "../entities/Wildlife";
 import { HiddenQuestItem, HIDDEN_QUEST_ITEMS, HIDDEN_QUEST_NAME, hiddenQuestProgress } from "../data/hiddenQuest";
@@ -44,6 +45,16 @@ const HIDDEN_QUEST_INTERACTION_DISTANCE = 78;
 const OPEN_WORLD_ENTITY_DEPTH_BASE = 118;
 const OPEN_WORLD_ENTITY_DEPTH_RANGE = 490;
 const OPEN_WORLD_SAFE_SPAWN = { x: 256, y: 260 } as const;
+const TERRAIN_STEP_PIXELS = 5;
+
+type ExplorationScenario = {
+  id: string;
+  item: InventoryItemId;
+  title: string;
+  prompt: string;
+  reward: StatDelta;
+  message: string;
+};
 
 export class OpenWorldScene extends BaseWorldScene {
   private chunkManager!: ChunkManager;
@@ -238,7 +249,7 @@ export class OpenWorldScene extends BaseWorldScene {
 
   private isTravelPathPassable(fromX: number, fromY: number, toX: number, toY: number, mode: TravelMode): boolean {
     const distance = Phaser.Math.Distance.Between(fromX, fromY, toX, toY);
-    const steps = Math.max(1, Math.ceil(distance / 10));
+    const steps = Math.max(1, Math.ceil(distance / TERRAIN_STEP_PIXELS));
     for (let index = 1; index <= steps; index += 1) {
       const t = index / steps;
       if (!this.isTravelPointPassable(
@@ -254,10 +265,31 @@ export class OpenWorldScene extends BaseWorldScene {
 
   private isTravelPointPassable(x: number, y: number, mode: TravelMode): boolean {
     if (!this.isWithinOpenWorldBounds(x, y)) return false;
-    const offsets = mode === "boat"
-      ? [[0, 0], [-42, 0], [42, 0], [0, -20], [0, 20], [-34, -16], [34, -16], [-34, 16], [34, 16]]
-      : [[0, 0], [-24, 0], [24, 0], [0, -20], [0, 20], [-20, -16], [20, -16], [-20, 16], [20, 16]];
-    return offsets.every(([dx, dy]) => this.chunkManager.isPassable(x + dx, y + dy, mode));
+    return this.travelProbeOffsets(mode).every(([dx, dy]) => this.chunkManager.isPassable(x + dx, y + dy, mode));
+  }
+
+  private travelProbeOffsets(mode: TravelMode): Array<[number, number]> {
+    if (mode === "boat") {
+      return [
+        [0, 0],
+        [-50, 0], [50, 0], [0, -26], [0, 26],
+        [-42, -20], [42, -20], [-42, 20], [42, 20],
+        [-24, -30], [24, -30], [-24, 30], [24, 30]
+      ];
+    }
+    if (this.isMounted) {
+      return [
+        [0, 0],
+        [-34, 0], [34, 0], [0, -28], [0, 28],
+        [-30, -22], [30, -22], [-30, 22], [30, 22],
+        [-18, -34], [18, -34], [-18, 34], [18, 34]
+      ];
+    }
+    return [
+      [0, 0],
+      [-26, 0], [26, 0], [0, -24], [0, 24],
+      [-22, -18], [22, -18], [-22, 18], [22, 18]
+    ];
   }
 
   private resolveTravelPoint(x: number, y: number, mode: TravelMode, radiusTiles = 12): { x: number; y: number } {
@@ -455,6 +487,7 @@ export class OpenWorldScene extends BaseWorldScene {
       return;
     }
     if (object.type === "wild_horse") {
+      if (this.handleExplorationScenario(interaction)) return;
       this.ui.messageBox.show("Wild Horse", "A wild horse watches from a distance. Capture and taming will come later.");
       return;
     }
@@ -511,6 +544,7 @@ export class OpenWorldScene extends BaseWorldScene {
       return;
     }
     if (object.type === "fishing_boat") {
+      if (this.handleExplorationScenario(interaction)) return;
       this.ui.messageBox.show("Fishing Boat", "A pulled-up fishing boat rests by the cove. Your own skiff can be built and customized back at the ranch Boat Shed.");
       return;
     }
@@ -519,11 +553,13 @@ export class OpenWorldScene extends BaseWorldScene {
       return;
     }
     if (object.type === "beach_palms") {
+      if (this.handleExplorationScenario(interaction)) return;
       this.completeStoryQuest("beach-sprint");
       this.ui.messageBox.show("Beach Palms", "Palms lean over warm sand and shallow water. The coast is opening up.");
       return;
     }
     if (object.type === "flower_patch") {
+      if (this.handleExplorationScenario(interaction)) return;
       if (!alreadyUsed) {
         this.stats = applyStatDelta(this.stats, { mood: 1 });
         save.world.interactedWorldObjects.push(object.id);
@@ -536,6 +572,7 @@ export class OpenWorldScene extends BaseWorldScene {
       return;
     }
     if (object.type === "banana_patch" || object.type === "breadfruit_tree" || object.type === "coconut_pile" || object.type === "sugarcane_patch") {
+      if (this.handleExplorationScenario(interaction)) return;
       if (!alreadyUsed) {
         this.stats = applyStatDelta(this.stats, { mood: 1, energy: object.type === "sugarcane_patch" ? 1 : 2 });
         save.world.interactedWorldObjects.push(object.id);
@@ -546,10 +583,12 @@ export class OpenWorldScene extends BaseWorldScene {
       return;
     }
     if (object.type === "hibiscus_bush" || object.type === "palm_cluster" || object.type === "limestone_outcrop" || object.type === "rain_puddle") {
+      if (this.handleExplorationScenario(interaction)) return;
       this.ui.messageBox.show("St Ann Scenery", this.sceneryMessage(object.type, object.id));
       return;
     }
     if (object.type === "pond_edge" || object.type === "pond") {
+      if (this.handleExplorationScenario(interaction)) return;
       if (!alreadyUsed) {
         this.stats = applyStatDelta(this.stats, { energy: 5 });
         save.world.interactedWorldObjects.push(object.id);
@@ -562,6 +601,7 @@ export class OpenWorldScene extends BaseWorldScene {
       return;
     }
     if (object.type === "berry_bush" || object.type === "mushroom_patch" || object.type === "herb_patch" || object.type === "wild_apple_tree") {
+      if (this.handleExplorationScenario(interaction)) return;
       if (!alreadyUsed) {
         const delta = object.type === "wild_apple_tree" ? { mood: 2, energy: 3 } : { mood: 1 };
         this.stats = applyStatDelta(this.stats, delta);
@@ -587,15 +627,19 @@ export class OpenWorldScene extends BaseWorldScene {
       return;
     }
     if (object.type === "rock_cluster") {
+      if (this.handleExplorationScenario(interaction)) return;
       this.ui.messageBox.show("Trail Marker", "A rocky trail marker breaks up the grass.");
       return;
     }
     if (object.type === "fallen_log") {
+      if (this.handleExplorationScenario(interaction)) return;
       this.ui.messageBox.show("Fallen Log", "A weathered log shelters tiny mushrooms and trail insects.");
     }
   }
 
   private promptFor(interaction: WorldInteraction): string {
+    const scenario = this.availableExplorationScenario(interaction);
+    if (scenario) return this.primaryPrompt(scenario.prompt);
     if (interaction.object.type === "sign") return this.primaryPrompt("Read Sign");
     if (interaction.object.type === "route_marker") return this.primaryPrompt("Read Route Marker");
     if (interaction.object.type === "market_stall") return this.primaryPrompt("Inspect Market Stall");
@@ -623,6 +667,133 @@ export class OpenWorldScene extends BaseWorldScene {
     if (interaction.object.type === "rock_cluster") return this.primaryPrompt("Inspect Rocks");
     if (interaction.object.type === "fallen_log") return this.primaryPrompt("Inspect Fallen Log");
     return this.primaryPrompt("Inspect Landmark");
+  }
+
+  private handleExplorationScenario(interaction: WorldInteraction): boolean {
+    const scenario = this.availableExplorationScenario(interaction);
+    if (!scenario) return false;
+    const save = SaveSystem.load();
+    const key = this.explorationScenarioKey(interaction, scenario.id);
+    if (save.world.interactedWorldObjects.includes(key)) return false;
+    if (this.inventory[scenario.item] <= 0) {
+      this.ui.messageBox.show("Tool Needed", `${ITEM_LABELS[scenario.item]} is needed here. Check the ranch inventory before riding back out.`);
+      return true;
+    }
+    this.stats = applyStatDelta(this.stats, scenario.reward);
+    save.world.interactedWorldObjects.push(key);
+    this.saveWorld(save.world.interactedWorldObjects);
+    this.ui.updateStats(this.stats, this.areaName);
+    this.ui.messageBox.show(scenario.title, `${scenario.message} ${this.deltaSummary(scenario.reward)}.`);
+    return true;
+  }
+
+  private availableExplorationScenario(interaction: WorldInteraction): ExplorationScenario | undefined {
+    const scenario = this.explorationScenarioFor(interaction);
+    if (!scenario) return undefined;
+    const save = SaveSystem.load();
+    const key = this.explorationScenarioKey(interaction, scenario.id);
+    return save.world.interactedWorldObjects.includes(key) ? undefined : scenario;
+  }
+
+  private explorationScenarioFor(interaction: WorldInteraction): ExplorationScenario | undefined {
+    const type = interaction.object.type;
+    const location = this.placeForWorld(interaction.worldX, interaction.worldY);
+    if (type === "fallen_log") {
+      return {
+        id: "rope-log",
+        item: "rope",
+        title: "Rope Line",
+        prompt: "Use Rope",
+        reward: { bond: 2, mood: 2, coins: 10 },
+        message: "You loop a rope around the fallen log and clear a safer trail line for the horse"
+      };
+    }
+    if (type === "rock_cluster" || type === "limestone_outcrop") {
+      return {
+        id: "horseshoe-marker",
+        item: "horseshoe",
+        title: "Trail Marker Set",
+        prompt: "Set Horseshoe Marker",
+        reward: { stamina: 2, coins: 14 },
+        message: `A spare horseshoe marks the footing near ${location.name}; future riders will spot the safe path sooner`
+      };
+    }
+    if (type === "pond" || type === "pond_edge" || type === "rain_puddle") {
+      return {
+        id: "water-can-refill",
+        item: "watering_can",
+        title: "Water Refill",
+        prompt: "Use Watering Can",
+        reward: { health: 3, energy: 3 },
+        message: "You refill the watering can and cool the horse down before the next stretch"
+      };
+    }
+    if (type === "herb_patch" || type === "flower_patch" || type === "hibiscus_bush") {
+      return {
+        id: "careful-harvest",
+        item: "lantern",
+        title: "Careful Search",
+        prompt: "Use Lantern",
+        reward: { mood: 2, coins: 8 },
+        message: "The lantern catches a small glint under the leaves and turns a quick stop into a useful find"
+      };
+    }
+    if (type === "fishing_boat") {
+      return {
+        id: "boat-repair",
+        item: "nail_kit",
+        title: "Cove Repair",
+        prompt: "Use Nail Kit",
+        reward: { bond: 1, coins: 24 },
+        message: "You tighten a loose plank for the cove fishermen and they pay you for the careful repair"
+      };
+    }
+    if (type === "wild_horse") {
+      return {
+        id: "gentle-brush",
+        item: "brush",
+        title: "Gentle Approach",
+        prompt: "Use Brush",
+        reward: { bond: 3, mood: 2 },
+        message: "You hold the brush low and let the wild horse settle nearby; your own horse mirrors the calm"
+      };
+    }
+    if (type === "market_stall" || type === "fruit_stand" || type === "banana_patch" || type === "breadfruit_tree" || type === "coconut_pile" || type === "sugarcane_patch") {
+      return {
+        id: "saddle-packs",
+        item: "saddle",
+        title: "Packed For The Road",
+        prompt: "Use Saddle Packs",
+        reward: { stamina: 2, energy: 2, coins: 6 },
+        message: "You balance a few supplies in the saddle packs and make the next ride easier"
+      };
+    }
+    if (type === "beach_palms" || type === "palm_cluster") {
+      return {
+        id: "tracker-bearing",
+        item: "horse_tracker",
+        title: "Tracker Bearing",
+        prompt: "Use Horse Tracker",
+        reward: { stamina: 1, bond: 1, coins: 12 },
+        message: `The horse tracker settles on a clean bearing along ${location.name}, adding a useful route note to the ride`
+      };
+    }
+    return undefined;
+  }
+
+  private explorationScenarioKey(interaction: WorldInteraction, scenarioId: string): string {
+    return `explore:${scenarioId}:${interaction.object.id}`;
+  }
+
+  private deltaSummary(delta: StatDelta): string {
+    return Object.entries(delta)
+      .filter(([, value]) => typeof value === "number" && value !== 0)
+      .map(([key, value]) => `${this.statName(key)} ${Number(value) > 0 ? "+" : ""}${value}`)
+      .join(", ");
+  }
+
+  private statName(key: string): string {
+    return key.charAt(0).toUpperCase() + key.slice(1);
   }
 
   private forageMessage(type: string): string {

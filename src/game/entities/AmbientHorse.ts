@@ -23,6 +23,7 @@ export class AmbientHorse {
   ) {
     this.sprite.setTexture(this.idleTexture());
     this.sprite.setDisplaySize(86, 86);
+    if (this.visuals) this.sprite.setTint(this.visuals.coatTint);
     this.baseScaleX = this.sprite.scaleX;
     this.baseScaleY = this.sprite.scaleY;
     this.enterIdle();
@@ -30,7 +31,7 @@ export class AmbientHorse {
 
   setVisuals(visuals: HorseVisualKeys): void {
     this.visuals = visuals;
-    this.sprite.setTexture(this.idleTexture()).setDisplaySize(86, 86);
+    this.sprite.setTexture(this.idleTexture()).setDisplaySize(86, 86).setTint(visuals.coatTint);
     this.enterIdle();
   }
 
@@ -88,6 +89,7 @@ export class AmbientHorse {
 
     if (this.playAnimation(this.visuals?.idleAnimationKey ?? HORSE_ANIMATION_KEYS.idleBreathe)) return;
     this.sprite.setTexture(this.idleTexture());
+    if (this.visuals) this.sprite.setTint(this.visuals.coatTint);
     this.startFallbackBreatheTween(0.985, 1200);
   }
 
@@ -100,6 +102,7 @@ export class AmbientHorse {
 
     if (this.playAnimation(this.visuals?.idleAnimationKey ?? HORSE_ANIMATION_KEYS.idleBreathe)) return;
     this.sprite.setTexture(this.idleTexture());
+    if (this.visuals) this.sprite.setTint(this.visuals.coatTint);
   }
 
   private enterGraze(): void {
@@ -110,6 +113,7 @@ export class AmbientHorse {
 
     if (this.playAnimation(this.visuals?.grazeAnimationKey ?? HORSE_ANIMATION_KEYS.grazeLoop)) return;
     this.sprite.setTexture(this.grazeTexture());
+    if (this.visuals) this.sprite.setTint(this.visuals.coatTint);
     this.startFallbackBreatheTween(0.97, 850);
   }
 
@@ -139,6 +143,7 @@ export class AmbientHorse {
 
     if (!this.sprite.anims.isPlaying && !this.playAnimation(this.visuals?.walkAnimationKey ?? HORSE_ANIMATION_KEYS.walkRight)) {
       this.sprite.setTexture(this.idleTexture());
+      if (this.visuals) this.sprite.setTint(this.visuals.coatTint);
     }
   }
 
