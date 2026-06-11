@@ -37,7 +37,7 @@ The production build runs TypeScript compilation first and then emits the Vite b
 
 - Main menu, character selection, settings, credits, and story-mode entry
 - Ranch hub with starter home selection, NPC prompts, and guided progression
-- Open-world exploration with procedural chunks, minimap support, travel points, high-delta collision recovery, hidden quest content, inventory-tool exploration scenarios, trail discovery milestones, and weather state
+- Open-world exploration with procedural chunks, minimap support, travel points, high-delta collision recovery, shore-safe boat disembarking, hidden quest content, inventory-tool exploration scenarios, trail discovery milestones, and weather state
 - Horse stats, stat clamping, autosave, load, corrupted-save fallback, and reset handling
 - Player movement with horse companion behavior plus mounted riding and jumping sprites
 - Training drills with stat previews and result popups
@@ -111,11 +111,12 @@ The save includes horse stats, inventory, procedural world state, horse customiz
 
 ## Optional QA / Smoke Checks
 
-The repo includes Playwright-style smoke scripts in `scripts/` for focused gameplay checks. They require Playwright to be available in the environment; the production build does not depend on it. `smoke-openworld-systems.mjs` writes `test-artifacts/openworld-systems-smoke.json` with collision sweep, exploration scenario, and customization evidence.
+The repo includes Playwright-style smoke scripts in `scripts/` for focused gameplay checks. They require Playwright to be available in the environment; the production build does not depend on it. `smoke-openworld-systems.mjs` writes `test-artifacts/openworld-systems-smoke.json` with collision sweep, exploration scenario, and customization evidence. `smoke-traversal-routes.mjs` writes `test-artifacts/traversal-routes-smoke.json` with representative parish shore, dock, disembark, and save-state evidence.
 
 ```bash
 node scripts/smoke-playthrough.mjs
 node scripts/smoke-openworld-systems.mjs
+node scripts/smoke-traversal-routes.mjs
 node scripts/smoke-horse-customization.mjs
 node scripts/smoke-boat-parishes.mjs
 ```

@@ -3,6 +3,7 @@ import { GAME_HEIGHT, IMAGE_KEYS } from "../data/constants";
 import { BaseWorldScene } from "./BaseWorldScene";
 import { ChunkManager, TravelMode, WorldInteraction } from "../world/ChunkManager";
 import { CHUNK_SIZE, chunkKey, TILE_SIZE, worldToChunk } from "../world/ChunkTypes";
+import type { WorldSaveData } from "../world/WorldSeed";
 import { ITEM_LABELS } from "../data/items";
 import {
   EXPLORATION_MILESTONES,
@@ -55,6 +56,21 @@ const OPEN_WORLD_ENTITY_DEPTH_RANGE = 490;
 const OPEN_WORLD_SAFE_SPAWN = { x: 256, y: 260 } as const;
 const TERRAIN_STEP_PIXELS = 5;
 const MAX_TERRAIN_SWEEP_DELTA_MS = 450;
+const DISEMBARK_SEARCH_RADIUS_TILES = 24;
+const DISEMBARK_DIRECT_OFFSETS: Array<[number, number]> = [
+  [62, 38],
+  [62, -38],
+  [-62, 38],
+  [-62, -38],
+  [0, 78],
+  [0, -78],
+  [104, 0],
+  [-104, 0],
+  [94, 58],
+  [94, -58],
+  [-94, 58],
+  [-94, -58]
+];
 
 export class OpenWorldScene extends BaseWorldScene {
   private chunkManager!: ChunkManager;
@@ -332,6 +348,32 @@ export class OpenWorldScene extends BaseWorldScene {
     const point = this.chunkManager.nearestPassablePoint(x, y, mode, searchRadius);
     const clamped = this.clampOpenWorldPoint(point.x, point.y);
     return this.isTravelPointPassable(clamped.x, clamped.y, mode) ? clamped : this.clampOpenWorldPoint(x, y);
+  }
+
+  private nearestTravelPointInRadius(x: number, y: number, mode: TravelMode, radiusTiles: number): { x: number; y: number } | undefined {
+    const originTileX = Math.floor(x / TILE_SIZE);
+    const originTileY = Math.floor(y / TILE_SIZE);
+    for (let radius = 1; radius <= radiusTiles; radius += 1) {
+      for (let dy = -radius; dy <= radius; dy += 1) {
+        for (let dx = -radius; dx <= radius; dx += 1) {
+          if (Math.abs(dx) !== radius && Math.abs(dy) !== radius) continue;
+          const candidate = this.clampOpenWorldPoint(
+            (originTileX + dx) * TILE_SIZE + TILE_SIZE / 2,
+            (originTileY + dy) * TILE_SIZE + TILE_SIZE / 2
+          );
+          if (this.isTravelPointPassable(candidate.x, candidate.y, mode)) return candidate;
+        }
+      }
+    }
+    return undefined;
+  }
+
+  private findDisembarkPoint(boatX: number, boatY: number): { x: number; y: number } | undefined {
+    for (const [dx, dy] of DISEMBARK_DIRECT_OFFSETS) {
+      const candidate = this.clampOpenWorldPoint(boatX + dx, boatY + dy);
+      if (this.isTravelPointPassable(candidate.x, candidate.y, "land")) return candidate;
+    }
+    return this.nearestTravelPointInRadius(boatX, boatY, "land", DISEMBARK_SEARCH_RADIUS_TILES);
   }
 
   private recoveryTravelPoint(mode: TravelMode, fallback?: { x: number; y: number }): { x: number; y: number } {
@@ -917,7 +959,14 @@ export class OpenWorldScene extends BaseWorldScene {
     const save = SaveSystem.load();
     const boatX = this.player.x;
     const boatY = this.player.y;
-    const landing = this.safeResolvedTravelPoint(boatX + 62, boatY + 38, "land", 18, this.lastSafeLandPoint);
+    const landing = this.findDisembarkPoint(boatX, boatY);
+    if (!landing) {
+      this.player.setVelocity(0);
+      this.lastSafeBoatPoint = { x: boatX, y: boatY };
+      this.saveBoatState(true);
+      this.ui.toast("Row closer to shore before tying up.", "#ffcf8a");
+      return;
+    }
     this.isBoating = false;
     this.player.setVelocity(0);
     this.player.clearTint().setAngle(0);
@@ -925,6 +974,8 @@ export class OpenWorldScene extends BaseWorldScene {
     this.player.setTexture(this.textures.exists(riderKey) ? riderKey : "rider_placeholder")
       .setDisplaySize(this.textures.exists(riderKey) ? 72 : 42, this.textures.exists(riderKey) ? 72 : 60);
     this.player.setPosition(landing.x, landing.y);
+    this.lastSafeLandPoint = { x: landing.x, y: landing.y };
+    this.lastSafeBoatPoint = { x: boatX, y: boatY };
     this.configurePlayerBody(false);
     this.boatSprite?.enableBody(true, boatX, boatY, true, true);
     this.boatSprite?.setDisplaySize(122, 78).setTint(boatHullTint(save.world.boat.hull)).setDepth(this.worldDisplayDepth(boatY, 40));
@@ -969,6 +1020,17 @@ export class OpenWorldScene extends BaseWorldScene {
       chunkX: playerChunk.chunkX,
       chunkY: playerChunk.chunkY
     };
+    if (!onboard && this.horse?.active && this.horse.visible) {
+      const safeHorse = this.safeResolvedTravelPoint(this.horse.x, this.horse.y, "land", 10, this.lastSafeLandPoint);
+      const horseChunk = worldToChunk(safeHorse.x, safeHorse.y);
+      save.world.horsePosition = {
+        x: safeHorse.x,
+        y: safeHorse.y,
+        chunkX: horseChunk.chunkX,
+        chunkY: horseChunk.chunkY
+      };
+    }
+    this.syncWorldLocation(save.world, playerPoint);
     SaveSystem.save({ stats: this.stats, inventory: this.inventory, world: save.world });
   }
 
@@ -1152,24 +1214,7 @@ export class OpenWorldScene extends BaseWorldScene {
         chunkY: horseChunk.chunkY
       };
     }
-    save.world.discoveredChunks = this.chunkManager.markDiscovered(save.world.discoveredChunks, safePlayer.x, safePlayer.y);
-    const parish = parishForChunk(current.chunkX, current.chunkY);
-    if (parish) {
-      save.world.currentParishId = parish.id;
-      save.world.visitedParishIds = Array.from(new Set([...save.world.visitedParishIds, parish.id]));
-      this.currentParish = parish;
-      const nextAreaName = parish.id === "st-ann" ? "St Ann Route" : `${parish.name} Shore`;
-      if (this.areaName !== nextAreaName) {
-        this.areaName = nextAreaName;
-        this.ui.updateStats(this.stats, this.areaName);
-      }
-    } else {
-      const nextAreaName = this.seededWildernessName(current.chunkX, current.chunkY);
-      if (this.areaName !== nextAreaName) {
-        this.areaName = nextAreaName;
-        this.ui.updateStats(this.stats, this.areaName);
-      }
-    }
+    this.syncWorldLocation(save.world, safePlayer);
     if (interactedWorldObjects) save.world.interactedWorldObjects = Array.from(new Set(interactedWorldObjects));
     if (save.world.boat.built) {
       const boatX = this.isBoating ? this.player.x : this.boatSprite?.x;
@@ -1188,6 +1233,28 @@ export class OpenWorldScene extends BaseWorldScene {
       }
     }
     SaveSystem.save({ stats: this.stats, inventory: this.inventory, world: save.world });
+  }
+
+  private syncWorldLocation(world: WorldSaveData, point: { x: number; y: number }): void {
+    const current = worldToChunk(point.x, point.y);
+    world.discoveredChunks = this.chunkManager.markDiscovered(world.discoveredChunks, point.x, point.y);
+    const parish = parishForChunk(current.chunkX, current.chunkY);
+    if (parish) {
+      world.currentParishId = parish.id;
+      world.visitedParishIds = Array.from(new Set([...world.visitedParishIds, parish.id]));
+      this.currentParish = parish;
+      const nextAreaName = parish.id === "st-ann" ? "St Ann Route" : `${parish.name} Shore`;
+      if (this.areaName !== nextAreaName) {
+        this.areaName = nextAreaName;
+        this.ui.updateStats(this.stats, this.areaName);
+      }
+    } else {
+      const nextAreaName = this.seededWildernessName(current.chunkX, current.chunkY);
+      if (this.areaName !== nextAreaName) {
+        this.areaName = nextAreaName;
+        this.ui.updateStats(this.stats, this.areaName);
+      }
+    }
   }
 
   private saveOpenWorldPosition(time = this.time.now): void {

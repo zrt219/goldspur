@@ -24,3 +24,12 @@
 - Verification performed: `npx tsc --noEmit`, `npm run build`, `node scripts/smoke-openworld-systems.mjs`, `node scripts/smoke-playthrough.mjs`, `node scripts/smoke-horse-customization.mjs`, `node scripts/smoke-boat-parishes.mjs`.
 - Evidence/files: `src/game/data/explorationScenarios.ts`, `src/game/scenes/OpenWorldScene.ts`, `src/game/systems/UIManager.ts`, `src/game/data/items.ts`, `scripts/smoke-openworld-systems.mjs`, `test-artifacts/openworld-systems-smoke.json`, `screenshots/qa-openworld-systems.png`, `README.md`.
 - Resume-safe bullet: Built a data-driven exploration reward layer for a Phaser/TypeScript horse game, including trail milestone progression, journal feedback, high-delta collision regression checks, and automated Playwright evidence capture.
+
+## 2026-06-11 — Verified Engineering Work
+
+- Built/changed: Hardened boat disembark behavior to search for nearby valid shore landings, prevent no-shore teleporting, synchronize boat saves with current parish metadata, and persist horse position immediately after shore disembark.
+- Systems involved: Phaser open-world traversal, boat state persistence, parish/world save metadata, horse tracker save state, Playwright traversal smoke testing.
+- Technical skills demonstrated: Regression-driven gameplay reliability, map traversal QA, save-state consistency, deterministic browser-game automation, route-based evidence capture.
+- Verification performed: `npx tsc --noEmit`, `node scripts/smoke-traversal-routes.mjs`.
+- Evidence/files: `src/game/scenes/OpenWorldScene.ts`, `scripts/smoke-traversal-routes.mjs`, `test-artifacts/traversal-routes-smoke.json`, `screenshots/qa-traversal-routes.png`, `README.md`.
+- Resume-safe bullet: Improved open-world boat traversal reliability in a Phaser/TypeScript game with shore-safe disembark logic, parish-aware boat saves, horse-position persistence, and route-based Playwright regression evidence.
