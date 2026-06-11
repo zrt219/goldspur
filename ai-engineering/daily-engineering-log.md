@@ -15,3 +15,12 @@
 - Verification performed: `npx tsc --noEmit`, `npm run build`, `node scripts/smoke-openworld-systems.mjs`, `node scripts/smoke-playthrough.mjs`, `node scripts/smoke-horse-customization.mjs`, `node scripts/smoke-boat-parishes.mjs`.
 - Evidence/files: `src/game/scenes/OpenWorldScene.ts`, `src/game/art/HorseCustomizationTextures.ts`, `src/game/data/horseCustomization.ts`, `src/game/data/items.ts`, `src/game/scenes/InventoryScene.ts`, `scripts/smoke-openworld-systems.mjs`, `screenshots/qa-openworld-systems.png`, `README.md`.
 - Resume-safe bullet: Improved a Phaser/TypeScript open-world horse game with stricter traversal collision checks, visible save-backed horse customization, inventory-driven exploration rewards, and Playwright regression coverage.
+
+## 2026-06-11 — Verified Engineering Work
+
+- Built/changed: Added a shared exploration scenario registry, fixed market and fruit-stand saddle-pack interactions, added trail discovery milestone rewards, surfaced trail progress in the journal, and expanded open-world collision regression coverage.
+- Systems involved: Phaser open-world interaction handling, procedural world object scanning, journal UI, localStorage save evidence, inventory-tool rewards, Playwright smoke testing.
+- Technical skills demonstrated: Data-driven gameplay systems, regression-driven bug fixing, browser-game collision QA, save-compatible progression design, automated evidence capture.
+- Verification performed: `npx tsc --noEmit`, `npm run build`, `node scripts/smoke-openworld-systems.mjs`, `node scripts/smoke-playthrough.mjs`, `node scripts/smoke-horse-customization.mjs`, `node scripts/smoke-boat-parishes.mjs`.
+- Evidence/files: `src/game/data/explorationScenarios.ts`, `src/game/scenes/OpenWorldScene.ts`, `src/game/systems/UIManager.ts`, `src/game/data/items.ts`, `scripts/smoke-openworld-systems.mjs`, `test-artifacts/openworld-systems-smoke.json`, `screenshots/qa-openworld-systems.png`, `README.md`.
+- Resume-safe bullet: Built a data-driven exploration reward layer for a Phaser/TypeScript horse game, including trail milestone progression, journal feedback, high-delta collision regression checks, and automated Playwright evidence capture.

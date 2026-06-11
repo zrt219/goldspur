@@ -1,12 +1,14 @@
 import { chromium } from "playwright";
-import { mkdir } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const url = process.env.GOLDSPUR_URL ?? "http://127.0.0.1:5173/";
 const screenshotDir = path.resolve("screenshots");
+const reportFile = path.resolve("test-artifacts", "openworld-systems-smoke.json");
 const saveKey = "goldspur_valley_save_v1";
 
 await mkdir(screenshotDir, { recursive: true });
+await mkdir(path.dirname(reportFile), { recursive: true });
 
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
@@ -137,62 +139,99 @@ try {
   const checks = await page.evaluate((key) => {
     const game = window.__goldspurGame;
     const scene = game.scene.getScene("OpenWorldScene");
+    const chunkSize = 512;
+    const sweepDeltaMs = 360;
+    const sweepSeconds = sweepDeltaMs / 1000;
     const passable = (x, y, mode = "land") => scene.isTravelPointPassable(x, y, mode);
-    const objects = scene.chunkManager.loadedObjects();
-    const scenarioTypes = new Set([
-      "fallen_log",
-      "rock_cluster",
-      "limestone_outcrop",
-      "pond",
-      "pond_edge",
-      "rain_puddle",
-      "herb_patch",
-      "flower_patch",
-      "hibiscus_bush",
-      "fishing_boat",
-      "wild_horse",
-      "market_stall",
-      "fruit_stand",
-      "banana_patch",
-      "breadfruit_tree",
-      "coconut_pile",
-      "sugarcane_patch",
-      "beach_palms",
-      "palm_cluster"
-    ]);
-
-    const blocking = objects.find((entry) => entry.object.collides && !passable(entry.worldX, entry.worldY));
-    if (!blocking) throw new Error("No blocking world object found near open-world smoke start.");
     const fallbackBefore = { x: scene.player.x, y: scene.player.y };
-    scene.player.setPosition(blocking.worldX, blocking.worldY);
-    scene.enforceSceneBounds();
-    const recovered = { x: scene.player.x, y: scene.player.y };
-    const recoveryPassable = passable(recovered.x, recovered.y);
+
+    const objectsById = new Map();
+    for (let chunkX = -1; chunkX <= 14; chunkX += 1) {
+      for (let chunkY = -2; chunkY <= 6; chunkY += 1) {
+        const x = chunkX * chunkSize + chunkSize / 2;
+        const y = chunkY * chunkSize + chunkSize / 2;
+        scene.chunkManager.update(x, y);
+        scene.chunkManager.loadedObjects().forEach((entry) => objectsById.set(entry.object.id, entry));
+      }
+    }
+    const objects = Array.from(objectsById.values());
+
+    const blockingObjects = objects.filter((entry) => entry.object.collides && !passable(entry.worldX, entry.worldY));
+    const collisionFailures = [];
+    let collisionChecks = 0;
+    for (const blocking of blockingObjects.slice(0, 18)) {
+      const angles = [0, Math.PI / 4, Math.PI / 2, Math.PI * 0.75, Math.PI, Math.PI * 1.25, Math.PI * 1.5, Math.PI * 1.75];
+      for (const angle of angles) {
+        const rawStart = {
+          x: blocking.worldX + Math.cos(angle) * 132,
+          y: blocking.worldY + Math.sin(angle) * 132
+        };
+        const start = scene.safeResolvedTravelPoint(rawStart.x, rawStart.y, "land", 24);
+        if (!passable(start.x, start.y)) continue;
+        scene.player.setPosition(start.x, start.y);
+        scene.chunkManager.update(start.x, start.y);
+        const velocity = new Phaser.Math.Vector2(blocking.worldX - start.x, blocking.worldY - start.y).normalize().scale(315);
+        scene.filterVelocityForTerrain(velocity, sweepDeltaMs, "land");
+        const predicted = {
+          x: start.x + velocity.x * sweepSeconds,
+          y: start.y + velocity.y * sweepSeconds
+        };
+        if (!passable(predicted.x, predicted.y)) {
+          collisionFailures.push({
+            type: blocking.object.type,
+            start: { x: Math.round(start.x), y: Math.round(start.y) },
+            predicted: { x: Math.round(predicted.x), y: Math.round(predicted.y) },
+            velocity: { x: Math.round(velocity.x), y: Math.round(velocity.y) }
+          });
+        }
+        collisionChecks += 1;
+        break;
+      }
+    }
 
     scene.player.setPosition(fallbackBefore.x, fallbackBefore.y);
-    const velocity = new Phaser.Math.Vector2(blocking.worldX - fallbackBefore.x, blocking.worldY - fallbackBefore.y).normalize().scale(315);
-    scene.filterVelocityForTerrain(velocity, 140, "land");
-    const predicted = {
-      x: fallbackBefore.x + velocity.x * 0.14,
-      y: fallbackBefore.y + velocity.y * 0.14
-    };
-    const filteredPassable = passable(predicted.x, predicted.y);
+    scene.chunkManager.update(fallbackBefore.x, fallbackBefore.y);
+    const hitchVelocity = new Phaser.Math.Vector2(1, 0).scale(315);
+    scene.filterVelocityForTerrain(hitchVelocity, 900, "land");
+    const hitchStopped = hitchVelocity.lengthSq() === 0;
 
-    const scenario = objects.find((entry) => scenarioTypes.has(entry.object.type));
-    if (!scenario) throw new Error("No exploration scenario object found near open-world smoke start.");
-    scene.player.setPosition(scenario.worldX, scenario.worldY);
-    scene.handleWorldInteraction({ object: scenario.object, worldX: scenario.worldX, worldY: scenario.worldY, distance: 0 });
+    const scenarioById = new Map();
+    objects.forEach((entry) => {
+      const interaction = { object: entry.object, worldX: entry.worldX, worldY: entry.worldY, distance: 0 };
+      const scenario = scene.explorationScenarioFor(interaction);
+      if (scenario && !scenarioById.has(scenario.id)) scenarioById.set(scenario.id, { ...entry, scenario });
+    });
+    const selectedScenarios = Array.from(scenarioById.values()).slice(0, 3);
+    if (selectedScenarios.length < 3) {
+      throw new Error(`Only found ${selectedScenarios.length} unique exploration scenarios during open-world scan.`);
+    }
+
+    selectedScenarios.forEach((entry) => {
+      scene.player.setPosition(entry.worldX, entry.worldY);
+      scene.chunkManager.update(entry.worldX, entry.worldY);
+      scene.handleWorldInteraction({ object: entry.object, worldX: entry.worldX, worldY: entry.worldY, distance: 0 });
+      scene.ui.messageBox.close();
+    });
+
+    scene.player.setPosition(fallbackBefore.x, fallbackBefore.y);
+    scene.chunkManager.update(fallbackBefore.x, fallbackBefore.y);
+    scene.ui.messageBox.close();
+
     const save = JSON.parse(localStorage.getItem(key) ?? "null");
-    const explored = save?.world?.interactedWorldObjects?.some((id) => id.startsWith("explore:"));
+    const exploreKeys = save?.world?.interactedWorldObjects?.filter((id) => id.startsWith("explore:")) ?? [];
+    const uniqueScenarioIds = Array.from(new Set(exploreKeys.map((id) => id.slice("explore:".length).split(":")[0])));
+    const milestoneAwarded = save?.world?.interactedWorldObjects?.includes("explore_bonus:trail-scout") ?? false;
 
     return {
-      blockingType: blocking.object.type,
-      recovered,
-      recoveryPassable,
-      filteredVelocity: { x: Math.round(velocity.x), y: Math.round(velocity.y) },
-      filteredPassable,
-      scenarioType: scenario.object.type,
-      explored,
+      scannedObjects: objects.length,
+      blockingObjects: blockingObjects.length,
+      collisionChecks,
+      collisionFailures,
+      hitchStopped,
+      scenarioTypes: selectedScenarios.map((entry) => entry.scenario.id),
+      exploreKeys,
+      uniqueScenarioIds,
+      milestoneAwarded,
       stats: save?.stats,
       horseVisuals: {
         coatTint: scene.horseVisuals?.coatTint,
@@ -203,21 +242,25 @@ try {
   }, saveKey);
 
   const screenshot = await shot("qa-openworld-systems.png");
-  const passed = checks.recoveryPassable
-    && checks.filteredPassable
-    && checks.explored
+  const passed = checks.collisionChecks >= 6
+    && checks.collisionFailures.length === 0
+    && checks.hitchStopped
+    && checks.uniqueScenarioIds.length >= 3
+    && checks.milestoneAwarded
     && checks.horseVisuals.coatTint !== 0xffffff
     && checks.horseVisuals.mountedTint !== 0xffffff
     && consoleIssues.length === 0
     && failedRequests.length === 0;
 
-  console.log(JSON.stringify({
+  const report = {
     url,
     screenshot,
     checks,
     consoleIssues,
     failedRequests
-  }, null, 2));
+  };
+  await writeFile(reportFile, JSON.stringify(report, null, 2));
+  console.log(JSON.stringify({ ...report, reportFile }, null, 2));
 
   if (!passed) process.exitCode = 1;
 } finally {

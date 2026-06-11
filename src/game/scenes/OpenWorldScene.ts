@@ -3,7 +3,15 @@ import { GAME_HEIGHT, IMAGE_KEYS } from "../data/constants";
 import { BaseWorldScene } from "./BaseWorldScene";
 import { ChunkManager, TravelMode, WorldInteraction } from "../world/ChunkManager";
 import { CHUNK_SIZE, chunkKey, TILE_SIZE, worldToChunk } from "../world/ChunkTypes";
-import { InventoryItemId, ITEM_LABELS } from "../data/items";
+import { ITEM_LABELS } from "../data/items";
+import {
+  EXPLORATION_MILESTONES,
+  explorationMilestoneKey,
+  explorationProgress,
+  explorationScenarioForObjectType,
+  explorationScenarioKey,
+  ResolvedExplorationScenario
+} from "../data/explorationScenarios";
 import { SaveSystem } from "../systems/SaveSystem";
 import { applyStatDelta, StatDelta } from "../systems/HorseStats";
 import { Palette, PaletteCss } from "../art/Palette";
@@ -46,15 +54,7 @@ const OPEN_WORLD_ENTITY_DEPTH_BASE = 118;
 const OPEN_WORLD_ENTITY_DEPTH_RANGE = 490;
 const OPEN_WORLD_SAFE_SPAWN = { x: 256, y: 260 } as const;
 const TERRAIN_STEP_PIXELS = 5;
-
-type ExplorationScenario = {
-  id: string;
-  item: InventoryItemId;
-  title: string;
-  prompt: string;
-  reward: StatDelta;
-  message: string;
-};
+const MAX_TERRAIN_SWEEP_DELTA_MS = 450;
 
 export class OpenWorldScene extends BaseWorldScene {
   private chunkManager!: ChunkManager;
@@ -237,7 +237,11 @@ export class OpenWorldScene extends BaseWorldScene {
 
   private filterVelocityForTerrain(velocity: Phaser.Math.Vector2, delta: number, mode: TravelMode): void {
     if (!this.chunkManager || velocity.lengthSq() === 0) return;
-    const dt = Phaser.Math.Clamp(delta, 16, 140) / 1000;
+    const dt = this.travelDeltaSeconds(delta);
+    if (dt <= 0) {
+      velocity.set(0, 0);
+      return;
+    }
     const nextX = this.player.x + velocity.x * dt;
     const nextY = this.player.y + velocity.y * dt;
     if (!this.isTravelPathPassable(this.player.x, this.player.y, nextX, this.player.y, mode)) velocity.x = 0;
@@ -245,6 +249,11 @@ export class OpenWorldScene extends BaseWorldScene {
     if (!this.isTravelPathPassable(this.player.x, this.player.y, this.player.x + velocity.x * dt, this.player.y + velocity.y * dt, mode)) {
       velocity.set(0, 0);
     }
+  }
+
+  private travelDeltaSeconds(delta: number): number {
+    const frameMs = Number.isFinite(delta) ? Math.max(delta, 16) : 16;
+    return frameMs > MAX_TERRAIN_SWEEP_DELTA_MS ? 0 : frameMs / 1000;
   }
 
   private isTravelPathPassable(fromX: number, fromY: number, toX: number, toY: number, mode: TravelMode): boolean {
@@ -513,6 +522,7 @@ export class OpenWorldScene extends BaseWorldScene {
       return;
     }
     if (object.type === "market_stall" || object.type === "fruit_stand") {
+      if (this.handleExplorationScenario(interaction)) return;
       const foods = sampleJamaicanFoods(object.id, 5).join(", ");
       if (!alreadyUsed && object.type === "fruit_stand") {
         this.stats = applyStatDelta(this.stats, { mood: 1, energy: 2 });
@@ -673,116 +683,49 @@ export class OpenWorldScene extends BaseWorldScene {
     const scenario = this.availableExplorationScenario(interaction);
     if (!scenario) return false;
     const save = SaveSystem.load();
-    const key = this.explorationScenarioKey(interaction, scenario.id);
+    const key = explorationScenarioKey(interaction.object.id, scenario.id);
     if (save.world.interactedWorldObjects.includes(key)) return false;
     if (this.inventory[scenario.item] <= 0) {
       this.ui.messageBox.show("Tool Needed", `${ITEM_LABELS[scenario.item]} is needed here. Check the ranch inventory before riding back out.`);
       return true;
     }
+    const beforeProgress = explorationProgress(save.world.interactedWorldObjects);
     this.stats = applyStatDelta(this.stats, scenario.reward);
     save.world.interactedWorldObjects.push(key);
+    let message = `${scenario.message} ${this.deltaSummary(scenario.reward)}.`;
+    const afterProgress = explorationProgress(save.world.interactedWorldObjects);
+    const milestone = EXPLORATION_MILESTONES.find((entry) => (
+      beforeProgress.uniqueScenarioCount < entry.count
+      && afterProgress.uniqueScenarioCount >= entry.count
+      && !save.world.interactedWorldObjects.includes(explorationMilestoneKey(entry.id))
+    ));
+    if (milestone) {
+      this.stats = applyStatDelta(this.stats, milestone.reward);
+      save.world.interactedWorldObjects.push(explorationMilestoneKey(milestone.id));
+      message += ` ${milestone.title}: ${milestone.message}. ${this.deltaSummary(milestone.reward)}.`;
+    }
     this.saveWorld(save.world.interactedWorldObjects);
     this.ui.updateStats(this.stats, this.areaName);
-    this.ui.messageBox.show(scenario.title, `${scenario.message} ${this.deltaSummary(scenario.reward)}.`);
+    this.ui.messageBox.show(scenario.title, message);
     return true;
   }
 
-  private availableExplorationScenario(interaction: WorldInteraction): ExplorationScenario | undefined {
+  private availableExplorationScenario(interaction: WorldInteraction): ResolvedExplorationScenario | undefined {
     const scenario = this.explorationScenarioFor(interaction);
     if (!scenario) return undefined;
     const save = SaveSystem.load();
-    const key = this.explorationScenarioKey(interaction, scenario.id);
+    const key = explorationScenarioKey(interaction.object.id, scenario.id);
     return save.world.interactedWorldObjects.includes(key) ? undefined : scenario;
   }
 
-  private explorationScenarioFor(interaction: WorldInteraction): ExplorationScenario | undefined {
-    const type = interaction.object.type;
+  private explorationScenarioFor(interaction: WorldInteraction): ResolvedExplorationScenario | undefined {
+    const definition = explorationScenarioForObjectType(interaction.object.type);
+    if (!definition) return undefined;
     const location = this.placeForWorld(interaction.worldX, interaction.worldY);
-    if (type === "fallen_log") {
-      return {
-        id: "rope-log",
-        item: "rope",
-        title: "Rope Line",
-        prompt: "Use Rope",
-        reward: { bond: 2, mood: 2, coins: 10 },
-        message: "You loop a rope around the fallen log and clear a safer trail line for the horse"
-      };
-    }
-    if (type === "rock_cluster" || type === "limestone_outcrop") {
-      return {
-        id: "horseshoe-marker",
-        item: "horseshoe",
-        title: "Trail Marker Set",
-        prompt: "Set Horseshoe Marker",
-        reward: { stamina: 2, coins: 14 },
-        message: `A spare horseshoe marks the footing near ${location.name}; future riders will spot the safe path sooner`
-      };
-    }
-    if (type === "pond" || type === "pond_edge" || type === "rain_puddle") {
-      return {
-        id: "water-can-refill",
-        item: "watering_can",
-        title: "Water Refill",
-        prompt: "Use Watering Can",
-        reward: { health: 3, energy: 3 },
-        message: "You refill the watering can and cool the horse down before the next stretch"
-      };
-    }
-    if (type === "herb_patch" || type === "flower_patch" || type === "hibiscus_bush") {
-      return {
-        id: "careful-harvest",
-        item: "lantern",
-        title: "Careful Search",
-        prompt: "Use Lantern",
-        reward: { mood: 2, coins: 8 },
-        message: "The lantern catches a small glint under the leaves and turns a quick stop into a useful find"
-      };
-    }
-    if (type === "fishing_boat") {
-      return {
-        id: "boat-repair",
-        item: "nail_kit",
-        title: "Cove Repair",
-        prompt: "Use Nail Kit",
-        reward: { bond: 1, coins: 24 },
-        message: "You tighten a loose plank for the cove fishermen and they pay you for the careful repair"
-      };
-    }
-    if (type === "wild_horse") {
-      return {
-        id: "gentle-brush",
-        item: "brush",
-        title: "Gentle Approach",
-        prompt: "Use Brush",
-        reward: { bond: 3, mood: 2 },
-        message: "You hold the brush low and let the wild horse settle nearby; your own horse mirrors the calm"
-      };
-    }
-    if (type === "market_stall" || type === "fruit_stand" || type === "banana_patch" || type === "breadfruit_tree" || type === "coconut_pile" || type === "sugarcane_patch") {
-      return {
-        id: "saddle-packs",
-        item: "saddle",
-        title: "Packed For The Road",
-        prompt: "Use Saddle Packs",
-        reward: { stamina: 2, energy: 2, coins: 6 },
-        message: "You balance a few supplies in the saddle packs and make the next ride easier"
-      };
-    }
-    if (type === "beach_palms" || type === "palm_cluster") {
-      return {
-        id: "tracker-bearing",
-        item: "horse_tracker",
-        title: "Tracker Bearing",
-        prompt: "Use Horse Tracker",
-        reward: { stamina: 1, bond: 1, coins: 12 },
-        message: `The horse tracker settles on a clean bearing along ${location.name}, adding a useful route note to the ride`
-      };
-    }
-    return undefined;
-  }
-
-  private explorationScenarioKey(interaction: WorldInteraction, scenarioId: string): string {
-    return `explore:${scenarioId}:${interaction.object.id}`;
+    return {
+      ...definition,
+      message: definition.message(location.name)
+    };
   }
 
   private deltaSummary(delta: StatDelta): string {

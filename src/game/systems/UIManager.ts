@@ -12,6 +12,7 @@ import { SaveSystem } from "./SaveSystem";
 import { STORY_QUESTS, storyQuestById } from "../data/storyQuests";
 import { activeCelebrationForDay, boatSummary, destinationByParishId } from "../data/jamaicaTravel";
 import { horseCustomizationSummary } from "../data/horseCustomization";
+import { explorationProgress } from "../data/explorationScenarios";
 import type { StAnnTimeOfDay, StAnnWeatherMode } from "./WeatherSystem";
 
 export type ClockHudState = {
@@ -237,6 +238,7 @@ export class UIManager {
     const homeParish = destinationByParishId(save.world.homeParishId);
     const currentParish = destinationByParishId(save.world.currentParishId);
     const celebration = activeCelebrationForDay(stats?.day ?? 1, save.world.currentParishId);
+    const exploration = explorationProgress(save.world.interactedWorldObjects);
     const coreQuest = activeQuest
       ? `Story quest: ${activeQuest.title} (${save.story.completedQuestIds.length}/${STORY_QUESTS.length})\nObjective: ${activeQuest.objective}`
       : "Story quest: Complete. Goldspur's legacy is secure.";
@@ -254,6 +256,8 @@ export class UIManager {
       `Home: ${home} at ${homeParish.name}`,
       `World seed: ${this.seedLabel(save.world.worldSeed)}`,
       `Horse style: ${horseCustomizationSummary(save.horseCustomization)}`,
+      `Trail discoveries: ${exploration.uniqueScenarioCount}/${exploration.totalScenarioTypes} tool routes, ${exploration.completedSites} sites`,
+      `Next trail lead: ${exploration.nextHint}`,
       boatSummary(save.world.boat),
       `Parish shore: ${currentParish.shoreName}, ${currentParish.name}`,
       `Today: ${celebration.title} (${celebration.timing}) - ${celebration.summary}`,

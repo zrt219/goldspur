@@ -60,7 +60,7 @@ export const ITEM_DESCRIPTIONS: Record<InventoryItemId, string> = {
   lantern: "Warm light for late barn checks. Carry it near flowers, herbs, or hibiscus to spot hidden finds.",
   nail_kit: "Repair kit for stable work. Carry it near cove boats to help with small repairs.",
   watering_can: "For garden beds and troughs. Carry it near ponds or rain puddles to refill and cool down.",
-  horse_tracker: "A brass compass tag tuned to your horse. Opens a tracker panel and marks your horse on the mini map."
+  horse_tracker: "A brass compass tag tuned to your horse. Opens a tracker panel, marks your horse on the mini map, and logs bearings near palms."
 };
 
 export function normalizeInventory(input: unknown): InventoryState {
