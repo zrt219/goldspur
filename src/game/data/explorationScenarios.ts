@@ -33,6 +33,7 @@ export type ExplorationMilestone = {
   title: string;
   reward: StatDelta;
   message: string;
+  unlockCustomizationIds?: string[];
 };
 
 export const EXPLORATION_SCENARIOS: ExplorationScenarioDefinition[] = [
@@ -132,21 +133,24 @@ export const EXPLORATION_MILESTONES: ExplorationMilestone[] = [
     count: 3,
     title: "Trail Scout Bonus",
     reward: { bond: 1, coins: 35 },
-    message: "Three different tool routes are now logged in the trail journal"
+    message: "Three different tool routes are now logged in the trail journal",
+    unlockCustomizationIds: ["blanket_trail_scout"]
   },
   {
     id: "parish-pathfinder",
     count: 6,
     title: "Parish Pathfinder Bonus",
     reward: { stamina: 2, coins: 60 },
-    message: "Your route notes now cover most of the core exploration tools"
+    message: "Your route notes now cover most of the core exploration tools",
+    unlockCustomizationIds: ["bridle_pathfinder"]
   },
   {
     id: "goldspur-wayfinder",
     count: 8,
     title: "Goldspur Wayfinder Bonus",
     reward: { bond: 2, mood: 2, coins: 100 },
-    message: "Every known trail tool has at least one field note"
+    message: "Every known trail tool has at least one field note",
+    unlockCustomizationIds: ["charm_wayfinder"]
   }
 ];
 

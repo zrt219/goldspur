@@ -97,7 +97,8 @@ try {
           "wraps_none",
           "wraps_gold",
           "charm_none",
-          "charm_goldspur"
+          "charm_goldspur",
+          "charm_lucky_coin"
         ],
         equipped: {
           coat: "coat_black",
@@ -107,7 +108,7 @@ try {
           blanket: "blanket_festival_night",
           bridle: "bridle_festival",
           wraps: "wraps_gold",
-          charm: "charm_goldspur"
+          charm: "charm_lucky_coin"
         }
       },
       selectedCharacterId: "mara"
@@ -221,6 +222,8 @@ try {
     const exploreKeys = save?.world?.interactedWorldObjects?.filter((id) => id.startsWith("explore:")) ?? [];
     const uniqueScenarioIds = Array.from(new Set(exploreKeys.map((id) => id.slice("explore:".length).split(":")[0])));
     const milestoneAwarded = save?.world?.interactedWorldObjects?.includes("explore_bonus:trail-scout") ?? false;
+    const trailScoutBlanketUnlocked = save?.horseCustomization?.owned?.includes("blanket_trail_scout") ?? false;
+    const tackBonusApplied = (save?.stats?.stamina ?? 0) >= 33 && (save?.stats?.coins ?? 0) >= 596;
 
     return {
       scannedObjects: objects.length,
@@ -232,7 +235,10 @@ try {
       exploreKeys,
       uniqueScenarioIds,
       milestoneAwarded,
+      trailScoutBlanketUnlocked,
+      tackBonusApplied,
       stats: save?.stats,
+      ownedCustomization: save?.horseCustomization?.owned,
       horseVisuals: {
         coatTint: scene.horseVisuals?.coatTint,
         mountedTint: scene.horseVisuals?.mountedTint,
@@ -247,6 +253,8 @@ try {
     && checks.hitchStopped
     && checks.uniqueScenarioIds.length >= 3
     && checks.milestoneAwarded
+    && checks.trailScoutBlanketUnlocked
+    && checks.tackBonusApplied
     && checks.horseVisuals.coatTint !== 0xffffff
     && checks.horseVisuals.mountedTint !== 0xffffff
     && consoleIssues.length === 0

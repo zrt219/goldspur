@@ -1,3 +1,5 @@
+import type { StatDelta } from "../systems/HorseStats";
+
 export type HorseCustomizationCategory =
   | "coat"
   | "mane"
@@ -16,6 +18,9 @@ export type HorseCustomizationItem = {
   tint: number;
   accent?: number;
   description: string;
+  effectLabel?: string;
+  explorationBonus?: StatDelta;
+  explorationScenarioIds?: string[];
 };
 
 export type HorseCustomizationSave = {
@@ -61,24 +66,26 @@ export const HORSE_CUSTOMIZATION_ITEMS: HorseCustomizationItem[] = [
 
   { id: "saddle_ranch", category: "saddle", label: "Ranch Saddle", price: 0, tint: 0x5b321c, accent: 0x9c6537, description: "Reliable starter saddle." },
   { id: "saddle_racing", category: "saddle", label: "Racing Saddle", price: 140, tint: 0x2f2a22, accent: 0xd4af37, description: "Lightweight racing saddle with gold trim." },
-  { id: "saddle_endurance", category: "saddle", label: "Endurance Saddle", price: 180, tint: 0x33483d, accent: 0x87a96b, description: "Trail-ready saddle for long parish rides." },
+  { id: "saddle_endurance", category: "saddle", label: "Endurance Saddle", price: 180, tint: 0x33483d, accent: 0x87a96b, description: "Trail-ready saddle for long parish rides.", effectLabel: "Trail perk: exploration finds add Stamina +1.", explorationBonus: { stamina: 1 } },
   { id: "saddle_parade", category: "saddle", label: "Parade Saddle", price: 220, tint: 0x7a1f25, accent: 0xf0c66a, description: "A proud parade saddle with brass detail." },
   { id: "saddle_carved", category: "saddle", label: "Carved Leather Saddle", price: 260, tint: 0x6b3c1f, accent: 0xf5e6b8, description: "Carved leather tack with premium stitching." },
-  { id: "saddle_jamaica_trail", category: "saddle", label: "Jamaica Trail Saddle", price: 310, tint: 0x214f38, accent: 0xd4af37, description: "A reinforced trail saddle for parish exploration." },
+  { id: "saddle_jamaica_trail", category: "saddle", label: "Jamaica Trail Saddle", price: 310, tint: 0x214f38, accent: 0xd4af37, description: "A reinforced trail saddle for parish exploration.", effectLabel: "Trail perk: exploration finds add Stamina +1 and Coins +3.", explorationBonus: { stamina: 1, coins: 3 } },
 
   { id: "blanket_plain", category: "blanket", label: "Plain Blanket", price: 0, tint: 0x3f5d7d, description: "A practical blue saddle blanket." },
   { id: "blanket_maroon", category: "blanket", label: "Maroon Blanket", price: 70, tint: 0x7c2430, accent: 0xf5e6b8, description: "Deep maroon wool with light trim." },
   { id: "blanket_goldspur", category: "blanket", label: "Goldspur Blanket", price: 110, tint: 0xd4af37, accent: 0x2a1a0e, description: "Goldspur colors for home pride." },
   { id: "blanket_reggae", category: "blanket", label: "Reggae Stripe Blanket", price: 160, tint: 0x1f8f4d, accent: 0xd4af37, description: "Green, gold, and black striping." },
-  { id: "blanket_blue_mountain", category: "blanket", label: "Blue Mountain Blanket", price: 190, tint: 0x315b72, accent: 0x9ec7c2, description: "Cool mountain blues with pale trim." },
-  { id: "blanket_festival_night", category: "blanket", label: "Festival Night Blanket", price: 230, tint: 0x2a244f, accent: 0xf0c66a, description: "Dark festival cloth with gold edge stitching." },
+  { id: "blanket_blue_mountain", category: "blanket", label: "Blue Mountain Blanket", price: 190, tint: 0x315b72, accent: 0x9ec7c2, description: "Cool mountain blues with pale trim.", effectLabel: "Trail perk: water and tracker finds add Health +1.", explorationBonus: { health: 1 }, explorationScenarioIds: ["water-can-refill", "tracker-bearing"] },
+  { id: "blanket_festival_night", category: "blanket", label: "Festival Night Blanket", price: 230, tint: 0x2a244f, accent: 0xf0c66a, description: "Dark festival cloth with gold edge stitching.", effectLabel: "Trail perk: lantern and tracker finds add Mood +1.", explorationBonus: { mood: 1 }, explorationScenarioIds: ["careful-harvest", "tracker-bearing"] },
+  { id: "blanket_trail_scout", category: "blanket", label: "Trail Scout Blanket", price: 340, tint: 0x5f6b3d, accent: 0xf0c66a, description: "Unlocked by logging three different trail-tool routes.", effectLabel: "Trail perk: exploration finds add Stamina +1.", explorationBonus: { stamina: 1 } },
 
   { id: "bridle_plain", category: "bridle", label: "Plain Bridle", price: 0, tint: 0x2f1b11, description: "Simple dark leather bridle." },
   { id: "bridle_braided", category: "bridle", label: "Braided Bridle", price: 80, tint: 0x71421f, accent: 0xd4af37, description: "Braided leather with small gold knots." },
   { id: "bridle_brass", category: "bridle", label: "Brass Bridle", price: 130, tint: 0x3a2416, accent: 0xc9a03b, description: "Dark leather with brass fittings." },
   { id: "bridle_silver", category: "bridle", label: "Silver Bridle", price: 190, tint: 0x292929, accent: 0xd6d6d6, description: "Black leather with silver fittings." },
-  { id: "bridle_festival", category: "bridle", label: "Festival Bridle", price: 240, tint: 0x3a2416, accent: 0x2f9f5f, description: "Festival colored bands on the cheek pieces." },
+  { id: "bridle_festival", category: "bridle", label: "Festival Bridle", price: 240, tint: 0x3a2416, accent: 0x2f9f5f, description: "Festival colored bands on the cheek pieces.", effectLabel: "Trail perk: lantern and wild-horse finds add Mood +1.", explorationBonus: { mood: 1 }, explorationScenarioIds: ["careful-harvest", "gentle-brush"] },
   { id: "bridle_pearl", category: "bridle", label: "Pearl Bridle", price: 280, tint: 0xefe4c9, accent: 0x3d3428, description: "Light pearl leather for a clean show finish." },
+  { id: "bridle_pathfinder", category: "bridle", label: "Pathfinder Bridle", price: 370, tint: 0x263326, accent: 0xd4af37, description: "Unlocked by mapping six different exploration tool routes.", effectLabel: "Trail perk: exploration finds add Bond +1 and Coins +3.", explorationBonus: { bond: 1, coins: 3 } },
 
   { id: "wraps_none", category: "wraps", label: "No Wraps", price: 0, tint: 0x000000, description: "No leg wraps." },
   { id: "wraps_white", category: "wraps", label: "White Wraps", price: 45, tint: 0xf5e6d0, description: "Clean white leg wraps." },
@@ -90,9 +97,10 @@ export const HORSE_CUSTOMIZATION_ITEMS: HorseCustomizationItem[] = [
   { id: "charm_none", category: "charm", label: "No Charm", price: 0, tint: 0x000000, description: "No bridle charm." },
   { id: "charm_shell", category: "charm", label: "Shell Charm", price: 55, tint: 0xf5e6d0, description: "A small shell charm from the coast." },
   { id: "charm_feather", category: "charm", label: "Feather Charm", price: 80, tint: 0x4d2e1a, accent: 0xf5e6d0, description: "A feather charm tied into the bridle." },
-  { id: "charm_lucky_coin", category: "charm", label: "Lucky Coin Charm", price: 125, tint: 0xd4af37, description: "A coin charm that catches the sun." },
+  { id: "charm_lucky_coin", category: "charm", label: "Lucky Coin Charm", price: 125, tint: 0xd4af37, description: "A coin charm that catches the sun.", effectLabel: "Trail perk: exploration finds add Coins +6.", explorationBonus: { coins: 6 } },
   { id: "charm_goldspur", category: "charm", label: "Goldspur Medallion", price: 210, tint: 0xd4af37, accent: 0x7a1f25, description: "A Goldspur medallion for the stable's champion." },
-  { id: "charm_blue_mountain", category: "charm", label: "Blue Mountain Charm", price: 255, tint: 0x6ca4b8, accent: 0xf5e6d0, description: "A cool blue charm for long mountain routes." }
+  { id: "charm_blue_mountain", category: "charm", label: "Blue Mountain Charm", price: 255, tint: 0x6ca4b8, accent: 0xf5e6d0, description: "A cool blue charm for long mountain routes.", effectLabel: "Trail perk: marker and tracker finds add Stamina +1 and Bond +1.", explorationBonus: { stamina: 1, bond: 1 }, explorationScenarioIds: ["horseshoe-marker", "tracker-bearing"] },
+  { id: "charm_wayfinder", category: "charm", label: "Wayfinder Charm", price: 440, tint: 0x88c9d8, accent: 0xf5e6d0, description: "Unlocked by completing every known trail-tool route.", effectLabel: "Trail perk: exploration finds add Bond +1, Mood +1, and Coins +5.", explorationBonus: { bond: 1, mood: 1, coins: 5 } }
 ];
 
 export const DEFAULT_HORSE_CUSTOMIZATION: HorseCustomizationSave = {
@@ -142,6 +150,40 @@ export function equippedHorseItem(save: HorseCustomizationSave, category: HorseC
   return horseCustomizationItem(save.equipped[category]) ?? horseCustomizationItem(DEFAULT_HORSE_CUSTOMIZATION.equipped[category])!;
 }
 
+export function equippedHorseItems(save: HorseCustomizationSave): HorseCustomizationItem[] {
+  return HORSE_CUSTOMIZATION_CATEGORIES.map((category) => equippedHorseItem(save, category.id));
+}
+
+export function horseCustomizationExplorationBonus(save: HorseCustomizationSave, scenarioId: string): StatDelta {
+  return equippedHorseItems(save).reduce((bonus, item) => {
+    if (!item.explorationBonus) return bonus;
+    if (item.explorationScenarioIds && !item.explorationScenarioIds.includes(scenarioId)) return bonus;
+    return mergeDelta(bonus, item.explorationBonus);
+  }, {} as StatDelta);
+}
+
+export function horseCustomizationExplorationBonusSummary(save: HorseCustomizationSave): string {
+  const labels = equippedHorseItems(save)
+    .map((item) => item.effectLabel)
+    .filter((label): label is string => Boolean(label));
+  return labels.length > 0 ? labels.join("\n") : "No trail perk equipped.";
+}
+
+export function addOwnedHorseCustomizationItems(save: HorseCustomizationSave, itemIds: string[]): HorseCustomizationSave {
+  const normalized = normalizeHorseCustomization(save);
+  const nextOwned = itemIds.filter((id) => ITEM_BY_ID.has(id));
+  return normalizeHorseCustomization({
+    ...normalized,
+    owned: Array.from(new Set([...normalized.owned, ...nextOwned]))
+  });
+}
+
+export function horseCustomizationLabels(itemIds: string[]): string[] {
+  return itemIds
+    .map((id) => horseCustomizationItem(id)?.label)
+    .filter((label): label is string => Boolean(label));
+}
+
 export function horseCustomizationSignature(save: HorseCustomizationSave): string {
   return HORSE_CUSTOMIZATION_CATEGORIES.map((category) => save.equipped[category.id].replace(`${category.id}_`, "")).join("_");
 }
@@ -151,4 +193,13 @@ export function horseCustomizationSummary(save: HorseCustomizationSave): string 
   const saddle = equippedHorseItem(save, "saddle").label;
   const blanket = equippedHorseItem(save, "blanket").label;
   return `${coat}, ${saddle}, ${blanket}`;
+}
+
+function mergeDelta(base: StatDelta, delta: StatDelta): StatDelta {
+  const next = { ...base };
+  for (const [key, value] of Object.entries(delta) as Array<[keyof StatDelta, number]>) {
+    if (typeof value !== "number" || value === 0) continue;
+    next[key] = (Number(next[key] ?? 0) + value) as never;
+  }
+  return next;
 }

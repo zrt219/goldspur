@@ -11,7 +11,7 @@ import { hiddenQuestProgress, HIDDEN_QUEST_NAME } from "../data/hiddenQuest";
 import { SaveSystem } from "./SaveSystem";
 import { STORY_QUESTS, storyQuestById } from "../data/storyQuests";
 import { activeCelebrationForDay, boatSummary, destinationByParishId } from "../data/jamaicaTravel";
-import { horseCustomizationSummary } from "../data/horseCustomization";
+import { horseCustomizationExplorationBonusSummary, horseCustomizationSummary } from "../data/horseCustomization";
 import { explorationProgress } from "../data/explorationScenarios";
 import type { StAnnTimeOfDay, StAnnWeatherMode } from "./WeatherSystem";
 
@@ -256,6 +256,7 @@ export class UIManager {
       `Home: ${home} at ${homeParish.name}`,
       `World seed: ${this.seedLabel(save.world.worldSeed)}`,
       `Horse style: ${horseCustomizationSummary(save.horseCustomization)}`,
+      `Tack field perk: ${this.firstLine(horseCustomizationExplorationBonusSummary(save.horseCustomization))}`,
       `Trail discoveries: ${exploration.uniqueScenarioCount}/${exploration.totalScenarioTypes} tool routes, ${exploration.completedSites} sites`,
       `Next trail lead: ${exploration.nextHint}`,
       boatSummary(save.world.boat),
@@ -285,6 +286,10 @@ export class UIManager {
 
   private seedLabel(seed: string): string {
     return seed.length > 28 ? `${seed.slice(0, 24)}...` : seed;
+  }
+
+  private firstLine(text: string): string {
+    return text.split("\n")[0] ?? text;
   }
 
   private formatHour(hour: number): string {

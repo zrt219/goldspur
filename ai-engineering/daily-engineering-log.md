@@ -33,3 +33,12 @@
 - Verification performed: `npx tsc --noEmit`, `node scripts/smoke-traversal-routes.mjs`.
 - Evidence/files: `src/game/scenes/OpenWorldScene.ts`, `scripts/smoke-traversal-routes.mjs`, `test-artifacts/traversal-routes-smoke.json`, `screenshots/qa-traversal-routes.png`, `README.md`.
 - Resume-safe bullet: Improved open-world boat traversal reliability in a Phaser/TypeScript game with shore-safe disembark logic, parish-aware boat saves, horse-position persistence, and route-based Playwright regression evidence.
+
+## 2026-06-11 — Verified Engineering Work
+
+- Built/changed: Added tack-based exploration perks, milestone-unlocked tack rewards, Tack Store perk display, and journal field-perk visibility for Goldspur Valley's inventory-tool exploration loop.
+- Systems involved: Horse customization data, open-world exploration rewards, localStorage save normalization, Tack Store UI, journal UI, Playwright open-world regression evidence.
+- Technical skills demonstrated: Data-driven progression design, save-compatible reward unlocks, TypeScript gameplay systems, automated browser-game verification, UI feedback integration.
+- Verification performed: `npx tsc --noEmit`, `node scripts/smoke-openworld-systems.mjs`.
+- Evidence/files: `src/game/data/horseCustomization.ts`, `src/game/data/explorationScenarios.ts`, `src/game/scenes/OpenWorldScene.ts`, `src/game/scenes/HorseCustomizationScene.ts`, `src/game/systems/UIManager.ts`, `scripts/smoke-openworld-systems.mjs`, `test-artifacts/openworld-systems-smoke.json`, `README.md`.
+- Resume-safe bullet: Expanded a Phaser/TypeScript horse-game exploration loop with equipment-based trail perks, milestone-unlocked tack, save-backed customization rewards, and Playwright evidence for reward and collision behavior.

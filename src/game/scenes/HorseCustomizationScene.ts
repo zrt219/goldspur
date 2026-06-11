@@ -153,6 +153,15 @@ export class HorseCustomizationScene extends Phaser.Scene {
       wordWrap: { width: 382 },
       lineSpacing: 6
     }).setDepth(933));
+    if (item.effectLabel) {
+      children.push(this.add.text(670, 552, item.effectLabel, {
+        fontFamily: "Georgia",
+        fontSize: "15px",
+        color: "#9be07d",
+        wordWrap: { width: 382 },
+        lineSpacing: 4
+      }).setDepth(933));
+    }
     children.push(this.add.text(670, 588, this.feedback, {
       fontFamily: "Georgia",
       fontSize: "17px",

@@ -13,6 +13,12 @@ import {
   explorationScenarioKey,
   ResolvedExplorationScenario
 } from "../data/explorationScenarios";
+import {
+  addOwnedHorseCustomizationItems,
+  horseCustomizationExplorationBonus,
+  horseCustomizationLabels,
+  type HorseCustomizationSave
+} from "../data/horseCustomization";
 import { SaveSystem } from "../systems/SaveSystem";
 import { applyStatDelta, StatDelta } from "../systems/HorseStats";
 import { Palette, PaletteCss } from "../art/Palette";
@@ -735,6 +741,11 @@ export class OpenWorldScene extends BaseWorldScene {
     this.stats = applyStatDelta(this.stats, scenario.reward);
     save.world.interactedWorldObjects.push(key);
     let message = `${scenario.message} ${this.deltaSummary(scenario.reward)}.`;
+    const tackBonus = horseCustomizationExplorationBonus(save.horseCustomization, scenario.id);
+    if (this.hasDelta(tackBonus)) {
+      this.stats = applyStatDelta(this.stats, tackBonus);
+      message += ` Tack perk: ${this.deltaSummary(tackBonus)}.`;
+    }
     const afterProgress = explorationProgress(save.world.interactedWorldObjects);
     const milestone = EXPLORATION_MILESTONES.find((entry) => (
       beforeProgress.uniqueScenarioCount < entry.count
@@ -745,8 +756,13 @@ export class OpenWorldScene extends BaseWorldScene {
       this.stats = applyStatDelta(this.stats, milestone.reward);
       save.world.interactedWorldObjects.push(explorationMilestoneKey(milestone.id));
       message += ` ${milestone.title}: ${milestone.message}. ${this.deltaSummary(milestone.reward)}.`;
+      if (milestone.unlockCustomizationIds?.length) {
+        save.horseCustomization = addOwnedHorseCustomizationItems(save.horseCustomization, milestone.unlockCustomizationIds);
+        const unlocked = horseCustomizationLabels(milestone.unlockCustomizationIds).join(", ");
+        if (unlocked) message += ` Tack unlocked: ${unlocked}.`;
+      }
     }
-    this.saveWorld(save.world.interactedWorldObjects);
+    this.saveWorld(save.world.interactedWorldObjects, save.horseCustomization);
     this.ui.updateStats(this.stats, this.areaName);
     this.ui.messageBox.show(scenario.title, message);
     return true;
@@ -775,6 +791,10 @@ export class OpenWorldScene extends BaseWorldScene {
       .filter(([, value]) => typeof value === "number" && value !== 0)
       .map(([key, value]) => `${this.statName(key)} ${Number(value) > 0 ? "+" : ""}${value}`)
       .join(", ");
+  }
+
+  private hasDelta(delta: StatDelta): boolean {
+    return Object.values(delta).some((value) => typeof value === "number" && value !== 0);
   }
 
   private statName(key: string): string {
@@ -1193,7 +1213,7 @@ export class OpenWorldScene extends BaseWorldScene {
     this.debugText.setVisible(this.debugWorldVisible);
   }
 
-  private saveWorld(interactedWorldObjects?: string[]): void {
+  private saveWorld(interactedWorldObjects?: string[], horseCustomization?: HorseCustomizationSave): void {
     const save = SaveSystem.load();
     const safePlayer = this.safeResolvedTravelPoint(this.player.x, this.player.y, this.isBoating ? "boat" : "land", 14, this.isBoating ? this.lastSafeBoatPoint : this.lastSafeLandPoint);
     if (safePlayer.x !== this.player.x || safePlayer.y !== this.player.y) this.player.setPosition(safePlayer.x, safePlayer.y);
@@ -1232,7 +1252,7 @@ export class OpenWorldScene extends BaseWorldScene {
         };
       }
     }
-    SaveSystem.save({ stats: this.stats, inventory: this.inventory, world: save.world });
+    SaveSystem.save({ stats: this.stats, inventory: this.inventory, world: save.world, horseCustomization: horseCustomization ?? save.horseCustomization });
   }
 
   private syncWorldLocation(world: WorldSaveData, point: { x: number; y: number }): void {
